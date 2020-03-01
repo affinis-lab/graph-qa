@@ -11,7 +11,7 @@ class BertReader(AbstractReader):
 
     def __init__(self):
         super().__init__()
-        self.load_model()
+        self._load_model()
 
     def __call__(self, *args, **kwargs):
         question = kwargs['question']
@@ -19,7 +19,7 @@ class BertReader(AbstractReader):
         answer = self.extract_answer(question, paragraphs)
         return [], {'answer': answer}
 
-    def load_model(self):
+    def _load_model(self):
         use_cuda = torch.cuda.is_available()
 
         if not use_cuda:
@@ -41,8 +41,8 @@ class BertReader(AbstractReader):
         
     def extract_answer(self, question, paragraphs):
         print("Your question is: ", question)
-        
         print('Looking for an answer in ', paragraphs[0])
+        
         to_predict = [
             {'context': paragraphs[0], 'qas': [{'question': question, 'id': '0'}]}
         ]

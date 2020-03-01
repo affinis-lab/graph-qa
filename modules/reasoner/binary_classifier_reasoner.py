@@ -9,7 +9,7 @@ from constants import REASONER_MODEL_PATH
 class BinaryClassifierReasoner:
 
     def __init__(self):
-        self.load_model()
+        self._load_model()
 
     def __call__(self, *args, **kwargs):
         question = kwargs['question']
@@ -17,7 +17,7 @@ class BinaryClassifierReasoner:
         question, paragraphs = self.rank(question, paragraphs)
         return [], {'question': question, 'paragraphs': paragraphs}
 
-    def load_model(self):
+    def _load_model(self):
         use_cuda = torch.cuda.is_available()
 
         if not use_cuda:
@@ -55,11 +55,11 @@ class BinaryClassifierReasoner:
     def _prepare_model_input(self, question, paragraphs):
         return [[question, paragraph] for paragraph in paragraphs]
     
-    def argsort(self, l):
+    def _argsort(self, l):
         return sorted(range(len(l)), key=l.__getitem__)
 
     def _determine_best_paragraphs(self, model_input, softmax_outputs):
-        indexes = self.argsort(softmax_outputs)
+        indexes = self._argsort(softmax_outputs)
         print(indexes)
         # limit to 2 paragraphs because of the HotpotQA setting
         return [model_input[i][1] for i in indexes][:2]

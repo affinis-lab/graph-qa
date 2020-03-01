@@ -28,18 +28,18 @@ class TfIdfRetriever(AbstractRetriever):
         # vector_representation = self.load_vector_representation()
         vector_representation = vectorizer.fit_transform(self.corpus)
 
-        similarities = self.get_tf_idf_query_similarity(vectorizer, vector_representation, question)
-        paragraphs.extend(self.retrieve_best_paragraphs(similarities, n_best=10))
+        similarities = self._get_tf_idf_query_similarity(vectorizer, vector_representation, question)
+        paragraphs.extend(self._retrieve_best_paragraphs(similarities, n_best=10))
 
         pretty_print(paragraphs)
 
         return question, paragraphs
 
-    def get_tf_idf_query_similarity(self, vectorizer, docs_tfidf, query):
+    def _get_tf_idf_query_similarity(self, vectorizer, docs_tfidf, query):
         query_tfidf = vectorizer.transform([self.corpus_loader.preprocess(query).lower()])
         return cosine_similarity(query_tfidf, docs_tfidf).flatten()
 
-    def retrieve_best_paragraphs(self, similarities, n_best=5):
+    def _retrieve_best_paragraphs(self, similarities, n_best=5):
         best_paragraphs = similarities.argsort()[-n_best:][::-1].tolist()
         return [self.corpus[index] for index in best_paragraphs]
 
