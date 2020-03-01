@@ -1,26 +1,30 @@
-from modules.reader.abstract_reader import AbstractReader
-
+import torch
 from simpletransformers.question_answering import QuestionAnsweringModel
 
 import json
 import os
 
+from modules.reader.abstract_reader import AbstractReader
+from constants import READER_MODEL_PATH
 
 class BertReader(AbstractReader):
 
-    def __init__(self, model_path):
+    def __init__(self):
         super().__init__()
-
-        self.model_path = model_path
         self.load_model()
 
     def __call__(self, *args, **kwargs):
         question = kwargs['question']
         paragraphs = kwargs['paragraphs']
         answer = self.extract_answer(question, paragraphs)
-        return [], {'answer': answer} 
+        return [], {'answer': answer}
 
     def load_model(self):
+        use_cuda = torch.cuda.is_available()
+
+        if not use_cuda:
+            print('Warning: Not using CUDA!')
+
         train_args = {
             'fp16': False,
             'num_train_epochs': 3,
@@ -33,7 +37,7 @@ class BertReader(AbstractReader):
             'gradient_accumulation_steps': 8,
             'no_cache': True
         }
-        self.model = QuestionAnsweringModel('albert', self.model_path, args=train_args)
+        self.model = QuestionAnsweringModel('albert', READER_MODEL_PATH, use_cuda=use_cuda, args=train_args)
         
     def extract_answer(self, question, paragraphs):
         print("Your question is: ", question)

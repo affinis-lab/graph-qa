@@ -1,15 +1,14 @@
 import numpy as np
 
+import torch
 from simpletransformers.classification import ClassificationModel
 
 from ..utils import softmax
+from constants import REASONER_MODEL_PATH
 
 class BinaryClassifierReasoner:
 
-    def __init__(self, model_path):
-        super().__init__()
-
-        self.model_path = model_path
+    def __init__(self):
         self.load_model()
 
     def __call__(self, *args, **kwargs):
@@ -19,6 +18,11 @@ class BinaryClassifierReasoner:
         return [], {'question': question, 'paragraphs': paragraphs}
 
     def load_model(self):
+        use_cuda = torch.cuda.is_available()
+
+        if not use_cuda:
+            print('Warning: Not using CUDA!')
+
         train_args = {
             'fp16': False,
             'reprocess_input_data': True,
@@ -32,18 +36,20 @@ class BinaryClassifierReasoner:
             'no_cache':True
         }
 
-        self.model = ClassificationModel('albert', self.model_path, num_labels=2, args=train_args)
+        self.model = ClassificationModel('albert', REASONER_MODEL_PATH, num_labels=2, use_cuda=use_cuda, args=train_args)
         
     def rank(self, question, paragraphs):
         model_input = self._prepare_model_input(question, paragraphs)
         
         predictions, raw_outputs = self.model.predict(model_input)        
-        print(predictions)
         softmax_outputs = [list(softmax(logits, theta=0.3)) for logits in raw_outputs]
-        print(softmax_outputs)
 
         paragraphs = self._determine_best_paragraphs(model_input, softmax_outputs)
+        
+        print(predictions)
+        print(softmax_outputs)
         print(paragraphs)
+
         return question, paragraphs
 
     def _prepare_model_input(self, question, paragraphs):

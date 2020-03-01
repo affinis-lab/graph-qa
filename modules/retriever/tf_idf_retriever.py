@@ -1,22 +1,21 @@
-from modules.retriever.abstract_retriever import AbstractRetriever
-from corpus_loader import CorpusLoader
-
 import bz2, json, re
 import numpy as np
 import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from modules.retriever.abstract_retriever import AbstractRetriever
+from utils.corpus_loader import CorpusLoader
+from constants import RETRIEVER_VECTOR_REPRESENTATION_PATH
+
 
 class TfIdfRetriever(AbstractRetriever):
 
-    def __init__(self, corpus_path, vector_representation_path):
+    def __init__(self):
         super().__init__()
 
-        self.corpus_loader = CorpusLoader(corpus_path)
+        self.corpus_loader = CorpusLoader()
         self.corpus = self.corpus_loader.load_corpus()
-        self.vector_representation_path = vector_representation_path
-
 
     def __call__(self, *args, **kwargs):
         question = kwargs['question']

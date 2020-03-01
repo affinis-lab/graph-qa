@@ -3,17 +3,15 @@ from modules.reader.bert_reader import BertReader
 from modules.reasoner.binary_classifier_reasoner import BinaryClassifierReasoner
 from modules.retriever.tf_idf_retriever import TfIdfRetriever
 
+from utils.redis_db import RedisDB
+
 # TODO trenutno se ucitava samo jedan .bz2 fajl, napraviti da se ucitavaju svi (onoliko koliko moze nas RAM da podnese) .bz2 fajlovi u svim folderima 
 # TODO 
 
 def main():
-
-    corpus_path = 'enwiki-20171001-pages-meta-current-withlinks-processed/AE/wiki_00.bz2'
-    reasoner_model_path = 'models/albert-binary-classifier'
-    reader_model_path = 'models/squad-qa-model'
-    retriever = TfIdfRetriever(corpus_path, '')
-    reasoner = BinaryClassifierReasoner(reasoner_model_path)
-    reader = BertReader(reader_model_path)
+    retriever = TfIdfRetriever()
+    reasoner = BinaryClassifierReasoner()
+    reader = BertReader()
 
     pipeline_components = [
         retriever, reasoner, reader
@@ -35,7 +33,7 @@ def main():
     # What was the name of Henry VIII's ship? - F
     # What was Henry VIII's ship? - T
 
-    _, kwargs = pipeline(question="""What was Henry VIII's ship?""", paragraphs=[])
+    _, kwargs = pipeline(question="""Who produced first colored photographs?""", paragraphs=[])
 
     print(kwargs['answer'])
 

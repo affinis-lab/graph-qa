@@ -2,15 +2,16 @@ import bz2
 import json
 import re
 import nltk
-nltk.download('punkt')
+
+from constants import CORPUS_PATH
+
 
 class CorpusLoader:
-    def __init__(self, corpus_path):
-        self.corpus_path = corpus_path
+    def __init__(self):
         self.lanc_stemmer = nltk.stem.lancaster.LancasterStemmer()
 
     def load_corpus(self):        
-        with bz2.open(self.corpus_path, "rb") as f:
+        with bz2.open(CORPUS_PATH, "rb") as f:
             data = f.read()
         
         data = json.loads(self.make_json_valid(data))
