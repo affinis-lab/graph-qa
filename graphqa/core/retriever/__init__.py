@@ -1,1 +1,2 @@
 from .abstract_retriever import AbstractRetriever
+from .tfidf_graph_retriever import TfIdfGraphRetriever
