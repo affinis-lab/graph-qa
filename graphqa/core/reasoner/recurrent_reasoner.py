@@ -132,7 +132,8 @@ class RecurrentReasonerModel(BertPreTrainedModel):
 class RecurrentReasoner(AbstractReasoner):
     def __init__(
                 self,
-                model_path,
+                model_name,
+                model_path=None,
                 num_reasoning_steps = 2,
                 max_paragraph_num = 10,
                 max_seq_len = 192,
@@ -150,8 +151,12 @@ class RecurrentReasoner(AbstractReasoner):
 
 
         # TODO: enable loading trained models
-        self.model = RecurrentReasonerModel.from_pretrained(model_path,  model_path=model_path)
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.model = RecurrentReasonerModel.from_pretrained(model_name)
+        self.tokenizer = BertTokenizer.from_pretrained(model_name)
+
+        if model_path:
+            # TODO: load optimizer aswell
+            self.load(model_path)
 
         self.n_gpu = torch.cuda.device_count()
         
@@ -190,23 +195,19 @@ class RecurrentReasoner(AbstractReasoner):
             learning_rate = 3e-5,
             warmup_proportion = 0.1,
             do_shuffle_features=False,
-            verbose=True,
-            model_path=None):
-    
+            verbose=True):
+        
+        if gradient_accumulation_steps > 1 and validate_after_steps % gradient_accumulation_steps != 0:
+            # TODO: just display a warning in the future
+            raise Exception('Modulo of validate_after_steps and gradient_accumulation_steps must be 0, if gradient_accumulation_steps is > 1.')
+
         # if not specified, validate after each epoch
         if not validate_after_steps:
             validate_after_steps = len(train_features)
         
-        if gradient_accumulation_steps > 1 and validate_after_steps % gradient_accumulation_steps != 0:
-            raise Exception('Modulo of validate_after_steps and gradient_accumulation_steps must be 0, if gradient_accumulation_steps is > 1.')
-
         num_train_steps = int(len(train_features) // train_batch_size // gradient_accumulation_steps * num_train_epochs)
 
         self._prepare_optimizer(learning_rate)
-
-        if model_path:
-            # TODO: load optimizer aswell
-            self.load(model_path)
             
         global_step = 0
         global_optimizer_step = 0

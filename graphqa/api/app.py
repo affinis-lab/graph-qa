@@ -16,6 +16,7 @@ from graphqa.api.constants import (
     READER_ARCHITECTURE,
     READER_PATH,
     RETRIEVER_PATH,
+    REASONER_ARCHITECTURE,
     REASONER_PATH,
     REASONER_NUM_REASONING_STEPS,
     REASONER_MAX_PARAGRAPH_NUM,
@@ -51,6 +52,7 @@ def init():
     retriever.load(retriever_path)
 
     reasoner = RecurrentReasoner(
+        REASONER_ARCHITECTURE,
         model_path=REASONER_PATH,
         num_reasoning_steps=REASONER_NUM_REASONING_STEPS,
         max_paragraph_num=REASONER_MAX_PARAGRAPH_NUM,
