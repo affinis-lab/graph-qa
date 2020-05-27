@@ -3,3 +3,5 @@ RETRIEVER_PATH = 'retriever'
 
 READER_ARCHITECTURE = 'albert'
 READER_PATH = 'reader'
+
+REASONER_PATH = 'reasoner'
