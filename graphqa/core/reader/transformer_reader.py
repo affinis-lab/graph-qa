@@ -30,23 +30,25 @@ class TransformerReader(AbstractReader):
         )
 
     def extract_answer(self, question, paragraphs):
-        if not paragraphs:
-            return [{
-                'answer': '',
-                'context': '',
-                'confidence': 0,
-                'supportingFacts': []
-            }]
-
         to_predict = []
         contexts = {}
         for idx, entry in enumerate(paragraphs):
+            if not entry:
+                continue
             context = self._get_context(entry)
             contexts[idx] = context
             to_predict.append({
                 'context': context,
                 'qas': [{'question': question, 'id': idx}]
             })
+
+        if not to_predict:
+            return [{
+                'answer': '',
+                'context': '',
+                'confidence': 0,
+                'supporting_facts': []
+            }]
 
         predictions = self.model.predict(to_predict)
         results = []

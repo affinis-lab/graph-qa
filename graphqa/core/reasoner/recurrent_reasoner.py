@@ -24,7 +24,7 @@ class RecurrentReasonerModel(BertPreTrainedModel):
 
     def __init__(self, config, *args, **kwargs):
         super(RecurrentReasonerModel, self).__init__(config)
-        
+
         self.bert = BertModel(config)
 
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
@@ -37,15 +37,15 @@ class RecurrentReasonerModel(BertPreTrainedModel):
 
         # RNN weight
         self.rw = nn.Linear(2*config.hidden_size, config.hidden_size)
-        
+
         # EOE and output bias
         self.eos = Parameter(torch.FloatTensor(config.hidden_size).uniform_(-0.1, 0.1))
         self.bias = Parameter(torch.FloatTensor(1).zero_())
 
         self.cpu = torch.device('cpu')
-        
+
         self.init_weights()
-        
+
     def weight_norm(self, state):
         state = state / state.norm(dim = 2).unsqueeze(2)
         state = self.g * state
@@ -79,7 +79,7 @@ class RecurrentReasonerModel(BertPreTrainedModel):
                 input_ids_ = torch.stack(list(chunk[i][0] for i in range(len(chunk))))
                 token_type_ids_ = torch.stack(list(chunk[i][1] for i in range(len(chunk))))
                 attention_mask_ = torch.stack(list(chunk[i][2] for i in range(len(chunk))))
-                                
+
                 encoded_layers, _ = self.bert(input_ids_, attention_mask_, token_type_ids_)
                 encoded_layers = encoded_layers[:, 0]
 
@@ -88,19 +88,19 @@ class RecurrentReasonerModel(BertPreTrainedModel):
                 else:
                     pooled_output = torch.cat((pooled_output, encoded_layers), dim = 0)
                 idx += 1
-                
+
         paragraphs = pooled_output.view(pooled_output.size(0)//N, N, pooled_output.size(1))     # (B, N, D), D: BERT dim
         EOE = self.eos.unsqueeze(0).unsqueeze(0)    # (1, 1, D)
         EOE = EOE.expand(paragraphs.size(0), EOE.size(1), EOE.size(2))  # (B, 1, D)
-        
+
         EOE = self.bert.encoder.layer[-1].output.LayerNorm(EOE)
         paragraphs = torch.cat((paragraphs, EOE), dim = 1) # (B, N+1, D)
-        
+
         state = self.s.expand(paragraphs.size(0), 1, self.s.size(0))
         state = self.weight_norm(state)
 
         return paragraphs, state
-        
+
     '''
     input_ids, token_type_ids, attention_mask: (B, N, L)
     - B: batch size
@@ -124,7 +124,7 @@ class RecurrentReasonerModel(BertPreTrainedModel):
         h = self.dropout(h)
         output = torch.bmm(h, paragraphs.transpose(1, 2))   # (B, max_num_steps, N+1)
         output = output + self.bias
-        
+
         loss = F.binary_cross_entropy_with_logits(output, target_labels, weight=output_mask, reduction='mean')
         return loss
 
@@ -159,11 +159,11 @@ class RecurrentReasoner(AbstractReasoner):
             self.load(model_path)
 
         self.n_gpu = torch.cuda.device_count()
-        
+
         if self.n_gpu > 1:
             # TODO: don't forget about the model.module problem in validation
             self.model = torch.nn.DataParallel(self.model)
-            
+
         self.model.to(self.device)
 
         random.seed(random_seed)
@@ -181,7 +181,7 @@ class RecurrentReasoner(AbstractReasoner):
 
         self.optimizer = AdamW(optimizer_grouped_parameters,
                             lr=learning_rate, correct_bias=False)
-    
+
     def fit(
             self,
             train_features,
@@ -196,7 +196,7 @@ class RecurrentReasoner(AbstractReasoner):
             warmup_proportion = 0.1,
             do_shuffle_features=False,
             verbose=True):
-        
+
         if gradient_accumulation_steps > 1 and validate_after_steps % gradient_accumulation_steps != 0:
             # TODO: just display a warning in the future
             raise Exception('Modulo of validate_after_steps and gradient_accumulation_steps must be 0, if gradient_accumulation_steps is > 1.')
@@ -204,33 +204,33 @@ class RecurrentReasoner(AbstractReasoner):
         # if not specified, validate after each epoch
         if not validate_after_steps:
             validate_after_steps = len(train_features)
-        
+
         num_train_steps = int(len(train_features) // train_batch_size // gradient_accumulation_steps * num_train_epochs)
 
         self._prepare_optimizer(learning_rate)
-            
+
         global_step = 0
         global_optimizer_step = 0
         max_intersection_ratio = 0
         max_exact_match = 0
-        
+
         self.model.train()
         self.optimizer.zero_grad()
 
         validation_dataloader = prepare_dataloader(validation_features)
-        
+
         # TODO: parameterize num_epoch_iterations
         num_epoch_iterations = 10
         train_chunk = len(train_features)//num_epoch_iterations
 
         for epoch in range(num_train_epochs):
             random.shuffle(train_features)
-            
+
             for iteration, train_features_iteration in enumerate(batch_generator(train_features, train_chunk)):
                 training_loss = 0
                 train_dataloader = prepare_dataloader(train_features_iteration, batch_size=train_batch_size, shuffle=True)
                 progress_bar = tqdm(train_dataloader, desc='Training', position=0, leave=True)
-                
+
                 for step, batch in enumerate(progress_bar):
                     batch = tuple(t.to(self.device) for t in batch)
                     input_ids, input_masks, segment_ids, output_masks, target_labels, _ = batch
@@ -249,14 +249,14 @@ class RecurrentReasoner(AbstractReasoner):
                                 golden_indices,
                                 self.num_reasoning_steps+1,
                                 split_chunk=None)
-                    
+
                     if self.n_gpu > 1:
                         loss = loss.mean()
-                    
+
                     loss = loss / gradient_accumulation_steps
                     loss.backward()
                     training_loss += loss.item()
-                    
+
                     global_step += 1
                     if (step + 1) % gradient_accumulation_steps == 0:
                         lr_this_step = learning_rate * warmup_linear(global_optimizer_step/num_train_steps, warmup_proportion)
@@ -267,7 +267,7 @@ class RecurrentReasoner(AbstractReasoner):
                         self.optimizer.step()
                         self.optimizer.zero_grad()
                         global_optimizer_step += 1
-                        
+
                         # validate only when there are no accumulated gradients
                         if global_step % validate_after_steps  == 0 and validation_dataloader:
                             validation_metrics = self.validate(
@@ -283,8 +283,8 @@ class RecurrentReasoner(AbstractReasoner):
                                             'model_state': self.model.state_dict(),
                                             'optimizer_state': self.optimizer.state_dict(),
                                         }, 'best_model_state_dict.pth')
-                                                            
-                    
+
+
                     if verbose:
                         if not validation_dataloader or not (validate_after_steps < global_step) :
                             progress_bar.set_description("Epoch %i-%i Step %i Loss: %.6f" 
@@ -320,7 +320,7 @@ class RecurrentReasoner(AbstractReasoner):
     def predict_greedy(self, paragraph_embeddings, state):
         paragraph_index_history = list()
         inference_paragraph_embeddings = torch.FloatTensor(paragraph_embeddings.size()).copy_(paragraph_embeddings).to(self.device)
-        
+
         # +1 for EOE
         for reasoning_step_num in range(self.num_reasoning_steps+1):
             output =  self._get_output_predictions(inference_paragraph_embeddings, state)
@@ -348,7 +348,7 @@ class RecurrentReasoner(AbstractReasoner):
                 exclude_eoe=False):
 
         validation_metrics = defaultdict(int)
-        
+
         num_validation_steps = len(valid_dataloader)
 
         self.model.eval()
@@ -356,17 +356,17 @@ class RecurrentReasoner(AbstractReasoner):
             progress_bar = tqdm(valid_dataloader, desc='Validation', position=0, leave=True)
             for step, batch in enumerate(progress_bar):
                 batch = tuple(t.to(self.device) for t in batch)
-                
+
                 input_ids, input_masks, segment_ids, _, target_labels, _ = batch # [batch_num:batch_num+1]
 
                 golden_indices = list(range(self.num_reasoning_steps))
                 if do_shuffle_features:
                     input_ids, segment_ids, input_masks, target_labels, golden_indices = shuffle_features(input_ids, segment_ids, input_masks, target_labels, self.max_paragraph_num-1, golden_indices)
-                
+
                 paragraph_embeddings, init_state = self.model.encode(input_ids, segment_ids, input_masks, None)
 
                 pred_paragraph_indexes = self.predict_greedy(paragraph_embeddings, init_state)
-                
+
                 if exclude_eoe:
                     ###
                     ## leave out the last paragraph index (the EOE index)
@@ -378,7 +378,7 @@ class RecurrentReasoner(AbstractReasoner):
                     ###
                     pred_paragraph_indexes = pred_paragraph_indexes[:-1]
                     target_labels = target_labels[:, :-1]
-            
+
                 target_indexes = torch.max(target_labels.cpu(), dim=2)[1][0].numpy()
 
                 intersection_ratio = intersection_ratio_metric(pred_paragraph_indexes, target_indexes)
@@ -386,22 +386,22 @@ class RecurrentReasoner(AbstractReasoner):
 
                 validation_metrics['intersection_ratio'] += intersection_ratio
                 validation_metrics['exact_match'] += exact_match
-                
+
                 progress_bar.set_description("Step %i Intersection ratio %.2f Exact match %.2f" 
                                                 % (int(step+1),
                                                 float(validation_metrics['intersection_ratio']/(step+1)),
                                                 float(validation_metrics['exact_match']/(step+1))))
-            
+
             validation_metrics['intersection_ratio'] /= num_validation_steps
             validation_metrics['exact_match'] /= num_validation_steps
 
         self.model.train()
-        
+
         return validation_metrics
 
     def load(self, path):
         model_state_dict = torch.load(path)
-        self.model.load_state_dict(model_state_dict['model_state'])
+        self.model.load_state_dict(model_state_dict)
 
     def _tokenize_question(self, question):
         tokens_q = self.tokenizer.tokenize(question)
@@ -412,16 +412,16 @@ class RecurrentReasoner(AbstractReasoner):
         if len(tokens_q) > self.max_seq_len / 2:
             # ensure that the question doesn't take more than half of the input
             tokens_q = tokens_q[:int(self.max_seq_len / 2) - 1] + ['[SEP]']
-        
+
         tokens_p = self.tokenizer.tokenize(paragraph)[:self.max_seq_len - len(tokens_q)-1]
         tokens_p = tokens_p + ['[SEP]']
 
         padding = [0] * (self.max_seq_len - len(tokens_p) - len(tokens_q))   
-        
+
         input_ids_ = self.tokenizer.convert_tokens_to_ids(tokens_q + tokens_p)
         input_masks_ = [1] * len(input_ids_)
         segment_ids_ = [0] * len(tokens_q) + [1] * len(tokens_p)
-        
+
         input_ids_ += padding
         input_masks_ += padding
         segment_ids_ += padding
@@ -430,7 +430,7 @@ class RecurrentReasoner(AbstractReasoner):
 
     def convert_to_features(self, question, paragraphs):
         paragraph_padding = [0] * self.max_seq_len
-        
+
         tokens_q = self._tokenize_question(question)
 
         input_ids, input_masks, segment_ids = [], [], []
@@ -442,19 +442,34 @@ class RecurrentReasoner(AbstractReasoner):
             input_ids.append(input_ids_)
             input_masks.append(input_masks_)
             segment_ids.append(segment_ids_)
-                    
+
         padding = [paragraph_padding] * (self.max_paragraph_num - len(input_ids))
 
         input_ids += padding
         input_masks += padding
         segment_ids += padding
-        
+
+        input_ids = torch.as_tensor(input_ids).unsqueeze(0).to(self.device)
+        input_masks = torch.as_tensor(input_masks).unsqueeze(0).to(self.device)
+        segment_ids = torch.as_tensor(segment_ids).unsqueeze(0).to(self.device)
+
         return input_ids, input_masks, segment_ids
 
     def rank(self, question, paragraphs):
-        input_ids, input_masks, segment_ids = self.convert_to_features(question, paragraphs)
+        reranked_paragraphs = []
+        for batch in paragraphs:
+            texts = map(lambda paragraph: paragraph['text'], batch)
+            input_ids, input_masks, segment_ids = self.convert_to_features(question, texts)
 
-        paragraph_embeddings, init_state = self.model.encode(input_ids, segment_ids, input_masks)
-        pred_paragraph_indexes = self.predict_greedy(paragraph_embeddings, init_state)
-        
-        return [paragraphs[idx] for idx in pred_paragraph_indexes]
+            paragraph_embeddings, init_state = self.model.encode(input_ids, segment_ids, input_masks)
+            pred_paragraph_indexes = self.predict_greedy(paragraph_embeddings, init_state)
+
+            selected_paragraphs = []
+            for idx in pred_paragraph_indexes:
+                if idx >= len(batch):
+                    continue
+                selected_paragraphs.append(batch[idx])
+
+            reranked_paragraphs.append(selected_paragraphs)
+
+        return reranked_paragraphs
