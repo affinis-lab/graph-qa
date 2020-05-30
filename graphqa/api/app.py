@@ -16,11 +16,16 @@ from graphqa.api.constants import (
     READER_ARCHITECTURE,
     READER_PATH,
     RETRIEVER_PATH,
+    REASONER_ARCHITECTURE,
+    REASONER_PATH,
+    REASONER_NUM_REASONING_STEPS,
+    REASONER_MAX_PARAGRAPH_NUM,
+    REASONER_MAX_SEQ_LEN
 )
 
 from graphqa.core import (
     TransformerReader,
-    DummyReasoner,
+    RecurrentReasoner,
     Pipeline,
     TfIdfGraphRetriever,
 )
@@ -46,7 +51,19 @@ def init():
     retriever = TfIdfGraphRetriever(db=db_addr, tokenizer=tokenizer)
     retriever.load(retriever_path)
 
-    reasoner = DummyReasoner()
+    reasoner_architecture = app.config[REASONER_ARCHITECTURE]
+    reasoner_path = app.config[REASONER_PATH]
+    reasoner_num_reasoning_steps = app.config[REASONER_NUM_REASONING_STEPS]
+    reasoner_max_paragraph_num = app.config[REASONER_MAX_PARAGRAPH_NUM]
+    reasoner_max_seq_len = app.config[REASONER_MAX_SEQ_LEN]
+
+    reasoner = RecurrentReasoner(
+        reasoner_architecture,
+        model_path=reasoner_path,
+        num_reasoning_steps=reasoner_num_reasoning_steps,
+        max_paragraph_num=reasoner_max_paragraph_num,
+        max_seq_len=reasoner_max_seq_len,
+    )
 
     reader_path = app.config[READER_PATH]
 
