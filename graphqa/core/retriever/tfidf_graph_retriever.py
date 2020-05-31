@@ -1,6 +1,5 @@
 from functools import partial
 from pathlib import Path
-import itertools
 
 from tqdm.auto import tqdm
 import nltk
@@ -9,16 +8,16 @@ from gensim.similarities import Similarity
 from nltk.corpus import stopwords
 from py2neo import Graph
 
+from graphqa.core.utils import tokenize
 from .abstract_retriever import AbstractRetriever
-from .utils import precision_exact_match
 
 
 class TfIdfGraphRetriever(AbstractRetriever):
 
-    def __init__(self, db, tokenizer, num_best=5, num_related=9, max_path_depth=2):
+    def __init__(self, db_addr, num_best=5, num_related=9, max_path_depth=2):
         super().__init__()
-        self.tokenizer = tokenizer
-        self.graph_db =  Graph(db)
+        self.tokenizer = partial(tokenize, stopwords=set(stopwords.words('english')))
+        self.graph_db =  Graph(db_addr)
         self.num_best = num_best
         self.num_related = num_related
         self.max_path_depth = max_path_depth
@@ -76,11 +75,3 @@ class TfIdfGraphRetriever(AbstractRetriever):
             return list(map(dict, nodes))
         except KeyError:
             return None
-
-    def evaluate(self, dataset):
-        precision = 0
-        for instance in tqdm(dataset):
-            question, gold_paragraphs = instance
-            pred_paragraphs = [p['text'] for p in itertools.chain.from_iterable(self.retrieve(question))]
-            precision += precision_exact_match(gold_paragraphs, pred_paragraphs)
-        return precision / len(dataset)
