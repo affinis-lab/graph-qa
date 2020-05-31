@@ -1,6 +1,8 @@
 from functools import partial
 from pathlib import Path
+import itertools
 
+from tqdm.auto import tqdm
 import nltk
 from gensim.corpora import Dictionary
 from gensim.similarities import Similarity
@@ -8,6 +10,7 @@ from nltk.corpus import stopwords
 from py2neo import Graph
 
 from .abstract_retriever import AbstractRetriever
+from .utils import precision_exact_match
 
 
 class TfIdfGraphRetriever(AbstractRetriever):
@@ -73,3 +76,11 @@ class TfIdfGraphRetriever(AbstractRetriever):
             return list(map(dict, nodes))
         except KeyError:
             return None
+
+    def evaluate(self, dataset):
+        precision = 0
+        for instance in tqdm(dataset):
+            question, gold_paragraphs = instance
+            pred_paragraphs = [p['text'] for p in itertools.chain.from_iterable(self.retrieve(question))]
+            precision += precision_exact_match(gold_paragraphs, pred_paragraphs)
+        return precision / len(dataset)
