@@ -26,7 +26,10 @@ class TransformerReader(AbstractReader):
             model_type='albert',
             model_name=path,
             use_cuda=use_cuda,
-            args={'fp16': fp16}
+            args={
+                'fp16': fp16,
+                'n_best_size': 1,
+            }
         )
 
     def extract_answer(self, question, paragraphs):
@@ -52,41 +55,21 @@ class TransformerReader(AbstractReader):
 
         predictions, probabilities = self.model.predict(to_predict)
 
-        # import json
-        # print('-' * 10 + '\tRESULTS\t' + '-' * 10)
-        # debug_results = list(zip(
-        #     contexts.values(),
-        #     predictions,
-        #     probabilities,
-        #     map(lambda key: key['score'], paragraphs)
-        # ))
-        # print(json.dumps(debug_results, indent=2))
-        # print('-' * 10 + '\tRESULTS\t' + '-' * 10)
-
         results = []
-        for prediction in predictions:
+        for prediction, probability in zip(predictions, probabilities):
             prediction_id = prediction['id']
             context = contexts[prediction_id]
 
-            answers = prediction['answer']
+            answer = prediction['answer'][0]
+            confidence = probability['probability'][0]
 
-            confidences = []
-            for entry in probabilities:
-                if entry['id'] == prediction_id:
-                    confidences = entry['probability']
-
-            max_idx, max_confidence = -1, -1
-            for idx, confidence in enumerate(confidences):
-                if confidence > max_confidence:
-                    max_idx = idx
-                    max_confidence = confidence
-
-            answer = answers[max_idx]
-            max_confidence += paragraphs[prediction_id]['score'] * 2
+            confidence += paragraphs[prediction_id]['score']
+            if not answer:
+                confidence = 0
 
             results.append({
                 'answer': answer,
-                'confidence': max_confidence,
+                'confidence': confidence,
                 'context': context if answer else '',
                 'supporting_facts': [],
             })

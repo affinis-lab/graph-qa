@@ -6,6 +6,7 @@ from .utils import normalize_answer, get_tokens
 def exact_match(gold_answer, pred_answer):
     return int(normalize_answer(gold_answer) == normalize_answer(pred_answer))
 
+
 def f1_score(gold_answer, pred_answer):
     gold_tokens = get_tokens(gold_answer)
     pred_tokens = get_tokens(pred_answer)
