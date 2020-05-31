@@ -1,7 +1,7 @@
 from collections import defaultdict
 from tqdm.auto import tqdm
 
-from .utils import exact_match, f1_score
+from .metrics import exact_match, f1_score
 
 
 class Pipeline:

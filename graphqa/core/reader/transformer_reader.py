@@ -26,7 +26,10 @@ class TransformerReader(AbstractReader):
             model_type='albert',
             model_name=path,
             use_cuda=use_cuda,
-            args={'fp16': fp16}
+            args={
+                'fp16': fp16,
+                'n_best_size': 1,
+            }
         )
 
     def extract_answer(self, question, paragraphs):
@@ -35,7 +38,7 @@ class TransformerReader(AbstractReader):
         for idx, entry in enumerate(paragraphs):
             if not entry:
                 continue
-            context = self._get_context(entry)
+            context = self._get_context(entry['paragraphs'])
             contexts[idx] = context
             to_predict.append({
                 'context': context,
@@ -50,18 +53,27 @@ class TransformerReader(AbstractReader):
                 'supporting_facts': []
             }]
 
-        predictions = self.model.predict(to_predict)
+        predictions, probabilities = self.model.predict(to_predict)
+
         results = []
-        for prediction in predictions:
-            idx = prediction['id']
-            context = contexts[idx]
-            answer = prediction['answer']
+        for prediction, probability in zip(predictions, probabilities):
+            prediction_id = prediction['id']
+            context = contexts[prediction_id]
+
+            answer = prediction['answer'][0]
+            confidence = probability['probability'][0]
+
+            confidence += paragraphs[prediction_id]['score']
+            if not answer:
+                confidence = 0
+
             results.append({
                 'answer': answer,
-                'confidence': 1.0 if answer else 0.5,
-                'context': context,
+                'confidence': confidence,
+                'context': context if answer else '',
                 'supporting_facts': [],
             })
+
         return results
 
     def _get_context(self, paragraphs):

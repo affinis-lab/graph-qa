@@ -11,10 +11,12 @@ from nltk.corpus import stopwords
 
 from graphqa.api.constants import (
     DEFAULT_LANGUAGE,
-    GRAPH_DB,
     GRAPH_QA_API_CONFIG_PATH,
     READER_ARCHITECTURE,
     READER_PATH,
+    RETRIEVER_ELASTICSEARCH_ADDR,
+    RETRIEVER_ELASTICSEARCH_INDEX,
+    RETRIEVER_GRAPH_DB,
     RETRIEVER_PATH,
     REASONER_ARCHITECTURE,
     REASONER_PATH,
@@ -27,7 +29,7 @@ from graphqa.core import (
     TransformerReader,
     RecurrentReasoner,
     Pipeline,
-    TfIdfGraphRetriever,
+    ElasticGraphRetriever,
 )
 
 from graphqa.core.utils import tokenize
@@ -44,12 +46,12 @@ if os.environ.get(GRAPH_QA_API_CONFIG_PATH):
 
 @app.before_first_request
 def init():
-    tokenizer = partial(tokenize, stopwords=set(stopwords.words(DEFAULT_LANGUAGE)))
-
-    db_addr = app.config[GRAPH_DB]
-    retriever_path = app.config[RETRIEVER_PATH]
-    retriever = TfIdfGraphRetriever(db=db_addr, tokenizer=tokenizer)
-    retriever.load(retriever_path)
+    db_addr = app.config[RETRIEVER_GRAPH_DB]
+    es_addr = app.config[RETRIEVER_ELASTICSEARCH_ADDR]
+    index_name = app.config[RETRIEVER_ELASTICSEARCH_INDEX]
+    retriever = ElasticGraphRetriever(
+        db_addr, es_addr, index_name, num_best=10, num_related=50
+    )
 
     reasoner_architecture = app.config[REASONER_ARCHITECTURE]
     reasoner_path = app.config[REASONER_PATH]

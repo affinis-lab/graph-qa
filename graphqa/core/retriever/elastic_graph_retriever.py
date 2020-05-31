@@ -1,43 +1,26 @@
 from functools import partial
-from pathlib import Path
 
-from tqdm.auto import tqdm
-import nltk
-from gensim.corpora import Dictionary
-from gensim.similarities import Similarity
-from nltk.corpus import stopwords
+from elasticsearch import Elasticsearch
 from py2neo import Graph
 
-from graphqa.core.utils import tokenize
 from .abstract_retriever import AbstractRetriever
 
 
-class TfIdfGraphRetriever(AbstractRetriever):
+class ElasticGraphRetriever(AbstractRetriever):
 
-    def __init__(self, db_addr, num_best=5, num_related=9, max_path_depth=2):
+    def __init__(self, db_addr, es_addr, index_name, num_best=5, num_related=50, max_path_depth=2):
         super().__init__()
-        self.tokenizer = partial(tokenize, stopwords=set(stopwords.words('english')))
         self.graph_db =  Graph(db_addr)
+        self.elasticsearch = Elasticsearch(es_addr)
+        self.index_name = index_name
         self.num_best = num_best
         self.num_related = num_related
         self.max_path_depth = max_path_depth
-        self.paragraph_ids = []
-        self.dictionary = None
-        self.index = None
+
 
     def load(self, path):
-        if type(path) == str:
-            path = Path(path)
-
-        with open(path / 'paragraph-ids.txt') as f:
-            self.paragraph_ids = [paragraph_id.strip() for paragraph_id in f]
-
-        dictionary_path = str(path / 'dct.pkl')
-        self.dictionary = Dictionary.load(dictionary_path)
-
-        index_path = str(path / 'indexes' / 'master-index')
-        self.index = Similarity.load(index_path)
-        self.index.num_best = self.num_best
+        # This model has no loadable components.
+        pass
 
     def retrieve(self, question):
         matched_paragraph_ids = self._match_paragraphs(question)
@@ -56,15 +39,33 @@ class TfIdfGraphRetriever(AbstractRetriever):
         return results
 
     def _match_paragraphs(self, question):
-        query = self.dictionary.doc2bow(self.tokenizer(question))
-        results = []
-        for idx, score in self.index[query]:
-            results.append((self.paragraph_ids[idx], score))
-        return results
+        request = {
+            "from" : 0,
+            "size" : self.num_best,
+            "query": {
+                "match": {
+                    "text": {
+                        "query": question,
+                        "fuzziness": "AUTO"
+                    }
+                }
+            }
+        }
+
+        try:
+            results = self.elasticsearch.search(index=self.index_name, body=request, request_timeout=30)
+        except:
+            return []
+
+        paragraph_ids = []
+        for hit in results["hits"]["hits"]:
+            paragraph_ids.append((hit["_id"], hit["_score"]))
+
+        return paragraph_ids
 
     def _fetch_related(self, paragraph_id, num_related, max_path_depth):
         query = f"match p=(a:Paragraph {{ paragraphId: \"{ paragraph_id }\" }})-" \
-            f"[*..{max_path_depth}]-(b:Paragraph) " \
+            f"[*..{max_path_depth}]->(b:Paragraph) " \
             "return a,b " \
             "order by length(p) " \
             f"limit {num_related}"
