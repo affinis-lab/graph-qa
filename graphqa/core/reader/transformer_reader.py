@@ -35,7 +35,7 @@ class TransformerReader(AbstractReader):
         for idx, entry in enumerate(paragraphs):
             if not entry:
                 continue
-            context = self._get_context(entry)
+            context = self._get_context(entry['paragraphs'])
             contexts[idx] = context
             to_predict.append({
                 'context': context,
@@ -50,18 +50,47 @@ class TransformerReader(AbstractReader):
                 'supporting_facts': []
             }]
 
-        predictions = self.model.predict(to_predict)
+        predictions, probabilities = self.model.predict(to_predict)
+
+        # import json
+        # print('-' * 10 + '\tRESULTS\t' + '-' * 10)
+        # debug_results = list(zip(
+        #     contexts.values(),
+        #     predictions,
+        #     probabilities,
+        #     map(lambda key: key['score'], paragraphs)
+        # ))
+        # print(json.dumps(debug_results, indent=2))
+        # print('-' * 10 + '\tRESULTS\t' + '-' * 10)
+
         results = []
         for prediction in predictions:
-            idx = prediction['id']
-            context = contexts[idx]
-            answer = prediction['answer']
+            prediction_id = prediction['id']
+            context = contexts[prediction_id]
+
+            answers = prediction['answer']
+
+            confidences = []
+            for entry in probabilities:
+                if entry['id'] == prediction_id:
+                    confidences = entry['probability']
+
+            max_idx, max_confidence = -1, -1
+            for idx, confidence in enumerate(confidences):
+                if confidence > max_confidence:
+                    max_idx = idx
+                    max_confidence = confidence
+
+            answer = answers[max_idx]
+            max_confidence += paragraphs[prediction_id]['score'] * 2
+
             results.append({
                 'answer': answer,
-                'confidence': 1.0 if answer else 0.5,
-                'context': context,
+                'confidence': max_confidence,
+                'context': context if answer else '',
                 'supporting_facts': [],
             })
+
         return results
 
     def _get_context(self, paragraphs):

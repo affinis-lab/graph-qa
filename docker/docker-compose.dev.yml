@@ -1,16 +1,30 @@
 version: '3'
 services:
-    neo4j:
-        image: neo4j:3.5
-        ports:
-            - 7474:7474
-            - 6477:6477
-            - 7687:7687
-        volumes:
-            - $GRAPH_DATA_DIR:/data_in
-            - neo4j-data:/data
-        environment:
-            - NEO4J_AUTH=none
+  es:
+    image: elasticsearch:7.7.0
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+
+  neo4j:
+    build:
+      context: .
+      dockerfile: neo4j.Dockerfile
+    image: graphqa-neo4j
+    ports:
+      - 7474:7474
+      - 6477:6477
+      - 7687:7687
+    volumes:
+      - $GRAPH_DATA_DIR:/data_in
+      - neo4j-data:/data
+    environment:
+      - NEO4J_AUTH=none
 
 volumes:
-    neo4j-data:
+  es-data:
+  neo4j-data:

@@ -318,7 +318,7 @@ class RecurrentReasoner(AbstractReasoner):
         return output
 
     def predict_greedy(self, paragraph_embeddings, state):
-        paragraph_index_history = list()
+        paragraph_index_history = []
         inference_paragraph_embeddings = torch.FloatTensor(paragraph_embeddings.size()).copy_(paragraph_embeddings).to(self.device)
 
         # +1 for EOE
@@ -330,7 +330,7 @@ class RecurrentReasoner(AbstractReasoner):
 
             score, paragraph_index = torch.max(output, dim=2)
             score, paragraph_index = score.item(), paragraph_index.item()
-            paragraph_index_history.append(paragraph_index)
+            paragraph_index_history.append((paragraph_index, score))
 
             state = torch.cat((state, inference_paragraph_embeddings[:, paragraph_index:paragraph_index+1, :]), dim=2)
             state = self.model.rw(state)
@@ -465,11 +465,16 @@ class RecurrentReasoner(AbstractReasoner):
             pred_paragraph_indexes = self.predict_greedy(paragraph_embeddings, init_state)
 
             selected_paragraphs = []
-            for idx in pred_paragraph_indexes:
+            scores = []
+            for idx, score in pred_paragraph_indexes:
                 if idx >= len(batch):
                     continue
                 selected_paragraphs.append(batch[idx])
+                scores.append(score)
 
-            reranked_paragraphs.append(selected_paragraphs)
+            reranked_paragraphs.append({
+                'paragraphs': selected_paragraphs,
+                'score': sum(scores) / len(scores)
+            })
 
         return reranked_paragraphs
