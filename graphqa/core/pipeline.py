@@ -1,3 +1,9 @@
+from collections import defaultdict
+from tqdm.auto import tqdm
+
+from .utils import exact_match, f1_score
+
+
 class Pipeline:
     def __init__(self, retriever, reasoner, reader):
         self.retriever = retriever
@@ -5,8 +11,22 @@ class Pipeline:
         self.reader = reader
 
     def __call__(self, question):
+        return self.predict(question)
+
+    def predict(self, question):
         retrieval_results = self.retriever(question)
         reasoner_results = self.reasoner(question, retrieval_results)
         reader_results = self.reader(question, reasoner_results)
         # return most probable result
         return max(reader_results, key=lambda result: result['confidence'])
+
+    def evaluate(self, dataset):
+        results = defaultdict(float)
+        for instance in tqdm(dataset):
+            question, gold_answer = instance
+            pred_answer = self.predict(question)['answer']
+            results['exact_match'] += exact_match(gold_answer, pred_answer)
+            results['f1_score'] += f1_score(gold_answer, pred_answer)
+        results['exact_match'] /= len(dataset)
+        results['f1_score'] /= len(dataset)
+        return results
