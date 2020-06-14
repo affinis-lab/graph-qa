@@ -382,24 +382,17 @@ class HGN:
     def predict(self, question, paragraphs):
         answers = []
         for batch in paragraphs:
-            for paragraph in batch:
-                texts = map(lambda paragraph: paragraph['text'], batch)
-                context = '\n'.join(texts)
-                
-                inputs = self._convert_to_features(question, texts)
-                paragraph_predictions, sentence_predictions, start_logits, end_logits = self.model(*inputs)
+            texts = map(lambda paragraph: paragraph['text'], batch)
 
-                start_indexes = get_best_indexes(start_logits.flatten(), n_best_size=1)[0]
-                end_indexes = get_best_indexes(end_logits.flatten(), n_best_size=1)[0]
+            inputs = self._convert_to_features(question, texts)
+            paragraph_predictions, sentence_predictions, start_logits, end_logits = self.model(*inputs)
 
-                input_ids = inputs[0]
-                answer = self.tokenizer.decode(input_ids[start_indexes:end_indexes+1])
-                answers.append({
-                    'answer': answer,
-                    'confidence': confidence,
-                    'context': context if answer else '',
-                    'supporting_facts': [],
-                })
+            start_indexes = get_best_indexes(start_logits.flatten(), n_best_size=1)[0]
+            end_indexes = get_best_indexes(end_logits.flatten(), n_best_size=1)[0]
+
+            input_ids = inputs[0]
+            answer = self.tokenizer.decode(input_ids[start_indexes:end_indexes+1])
+            answers.append(answer)
 
         return answers
 
