@@ -347,7 +347,7 @@ class RecurrentReasoner(AbstractReasoner):
                 do_shuffle_features=False,
                 exclude_eoe=False):
 
-        validation_metrics = defaultdict(int)
+        validation_metrics = defaultdict(float)
 
         num_validation_steps = len(valid_dataloader)
 
