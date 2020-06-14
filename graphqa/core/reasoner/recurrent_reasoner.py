@@ -16,8 +16,9 @@ from torch.utils.data import TensorDataset, DataLoader, RandomSampler, Sequentia
 from torch.nn.utils import clip_grad_norm_
 
 from .abstract_reasoner import AbstractReasoner
-from .utils import batch_generator, shuffle_features, warmup_linear, prepare_dataloader
+from .utils import batch_generator, shuffle_features, prepare_dataloader
 from .metrics import intersection_ratio_metric, exact_match_metric
+from ..optimizers import warmup_linear
 
 
 class RecurrentReasonerModel(BertPreTrainedModel):

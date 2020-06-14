@@ -73,21 +73,6 @@ def shuffle_features(input_ids, segment_ids, input_masks, target_labels, max_par
     
     return p_input_ids, p_segment_ids, p_input_masks, p_target_labels, golden_indices
 
-def warmup_cosine(x, warmup=0.002):
-    if x < warmup:
-        return x/warmup
-    return 0.5 * (1.0 + math.cos(math.pi * x))
-
-def warmup_linear(x, warmup=0.002):
-    if x < warmup:
-        return x/warmup
-    return 1.0 - x
-
-def warmup_constant(x, warmup=0.002):
-    if x < warmup:
-        return x/warmup
-    return 1.0
-
 class InputFeatures(object):
 
     def __init__(self, input_ids, input_masks, segment_ids, output_masks, target_labels, num_paragraphs, num_reasoning_steps):
