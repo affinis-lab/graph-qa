@@ -375,7 +375,7 @@ class HGN:
         return self.model
 
     def load(self, path):
-        model_state_dict = torch.load(path)
+        model_state_dict = torch.load(path)['model_state']
         self.model.load_state_dict(model_state_dict)
 
     # predict bi trebao otprilike ovako da izgleda
