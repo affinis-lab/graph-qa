@@ -1,0 +1,14 @@
+{
+"settings" : {
+    "number_of_shards": 1,
+    "number_of_replicas": 1
+},
+
+"mappings": {
+        "properties": {
+            "id": {"type": "text"},
+            "topic_name": {"type": "text"},
+            "topic_text": {"type":  "text"},
+            "topic_text_vector": {"type":  "dense_vector", "dims":  768}
+        }}
+}
