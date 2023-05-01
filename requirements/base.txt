@@ -5,7 +5,7 @@ simpletransformers==0.31.0
 nltk==3.5
 gensim==3.8.3
 py2neo==4.3.0
-flask==1.1.2
+flask==2.3.2
 jupyter==1.0.0
 tqdm==4.46.0
 elasticsearch==7.7.1
